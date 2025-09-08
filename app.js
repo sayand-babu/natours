@@ -6,7 +6,6 @@ const tour = require('./router/tour');
 const errorcontorl = require('./controler/errorcontorl');
 
 const app = express();
-
 // middleware
 app.use(express.json());
 
