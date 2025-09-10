@@ -9,7 +9,7 @@ const app = express();
 // middleware
 app.use(express.json());
 
-// routes
+
 app.use('/api/vs/tour', tour);
 app.use('/api/vs/user', user);
 app.all('*', (req, res, next) => {

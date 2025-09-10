@@ -38,6 +38,8 @@ const Production_Error = (err, res) => {
   }
 };
 
+const handlejwttokeninvalid = () => new Apperror(401, 'invalid token please log in again');
+
 // if the error is developemental error
 
 const development_error = (err, res) => {
@@ -58,6 +60,8 @@ module.exports = (err, req, res, next) => {
     if (err.name === 'CastError') error = handlecasterrordb(err);
     if (err.code === 11000) error = handleDuplicateerrordb(err);
     if (err.name === 'ValidationError') error = handlevalidationerrordb(err);
+    if (err.name === 'JsonWebTokenError') error = handlejwttokeninvalid();
+    if (err.name === 'TokenExpiredError') error = handlejwttokeninvalid();
     Production_Error(error, res);
   }
 };
