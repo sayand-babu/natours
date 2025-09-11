@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const validator = require('validator');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -23,6 +24,11 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: 'default.jpg', // default photo if none is provided
   },
+  role: {
+    type: String,
+    enum: ['user', 'guide', 'lead-guide', 'admin'], // only these values are allowed
+    default: 'user', // default role is user if none is provided
+  },
   password: {
     type: String,
     required: [true, 'A user must have a password'],
@@ -41,7 +47,11 @@ const userSchema = new mongoose.Schema({
     },
   },
   passwordChangedAt: Date,
+  passwordResetToken: String,
+  passwordResetExpires: Date,
 });
+
+// pre save middleware to hash the password before saving it to the database only work when we save and create a new user
 userSchema.pre('save', async function (next) {
   // Only run this function if password was actually modified
   if (!this.isModified('password')) return next();
@@ -70,6 +80,17 @@ userSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
   return false;
 };
 
-// create the model
+// instance method to create password reset token
+userSchema.methods.createPasswordResetToken = function () {
+  // gnerate the random token 32 bytes , convert to hex string
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  // hash the token and set to passwordResetToken field
+  this.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+  // set the expire time 10 minutes from now
+  this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
+  return resetToken;
+};
+
+// create the model and export it
 const User = mongoose.model('User', userSchema);
 module.exports = User;

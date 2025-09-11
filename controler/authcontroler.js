@@ -38,7 +38,8 @@ exports.login = asyncHandler(async (req, res, next) => {
   });
 });
 
-// protect middleware
+// protect middleware  verify that the user is logged in
+
 exports.protect = asyncHandler(async (req, res, next) => {
   // 1) check if the token exis
   let token;
@@ -65,4 +66,35 @@ exports.protect = asyncHandler(async (req, res, next) => {
   // give access to the protected route
   req.user = currentuser;
   next();
+});
+
+// restrict middleware to restrict certain routes to certain users only based on the role
+exports.restrict = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return next(new Apperror(403, 'you do not have permission to perform this action'));
+    }
+    next();
+  };
+};
+
+// forgot password controller
+exports.forgotpassword = asyncHandler(async (req, res, next) => {
+  // 1) get user based on posted email
+  const user = await users.findOne({ email: req.body.email });
+  if (!user) {
+    return next(new Apperror(404, 'there is no user with that email address'));
+  }
+
+  // 2) generate the random reset token
+  const resetToken = user.createPasswordResetToken();
+  await user.save({ validateBeforeSave: false });
+  // 3) send it to user's email
+
+  //
+  res.status(200).json({
+    status: 'success',
+    message: 'token sent to email',
+    resetToken,
+  });
 });
