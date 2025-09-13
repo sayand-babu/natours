@@ -3,6 +3,7 @@ const utils = require('util');
 const users = require('../model/usersmodel');
 const asyncHandler = require('../utils/catchasyncerror');
 const Apperror = require('../utils/apperror');
+const sendemail = require('../utils/emailservice');
 
 const tokengenerataion = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -78,23 +79,39 @@ exports.restrict = (...roles) => {
   };
 };
 
-// forgot password controller
+// forgot password controller ################
 exports.forgotpassword = asyncHandler(async (req, res, next) => {
   // 1) get user based on posted email
   const user = await users.findOne({ email: req.body.email });
+  // if the user doesnt exist return error
   if (!user) {
     return next(new Apperror(404, 'there is no user with that email address'));
   }
 
   // 2) generate the random reset token
   const resetToken = user.createPasswordResetToken();
-  await user.save({ validateBeforeSave: false });
-  // 3) send it to user's email
+  await user.save({ validateBeforeSave: false }); // it will remove all the validator and save the user
 
-  //
-  res.status(200).json({
-    status: 'success',
-    message: 'token sent to email',
-    resetToken,
-  });
+  // send a  router link to the users with  the token as a paramter
+  const resetURL = `${req.protocol}://${req.get('host')}/api/v1/user/resetpassword/${resetToken}`;
+  const message = `forgot your password? submit a patch request with your new password and passwordconfirm to : ${resetURL}.\n if you didn't forget your password please ignore this email`;
+
+  try {
+    await sendemail({
+      email: user.email,
+      subject: 'your password reset token (valid for 10 min)',
+      message,
+    });
+    // 3) send it to user's email
+    res.status(200).json({
+      status: 'success',
+      message: 'token sent to email',
+      resetToken,
+    });
+  } catch (err) {
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+    return next(new Apperror(500, 'there was an error sending the email. try again later!'));
+  }
 });
