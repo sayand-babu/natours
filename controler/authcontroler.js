@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const utils = require('util');
+const crypto = require('crypto');
 const users = require('../model/usersmodel');
 const asyncHandler = require('../utils/catchasyncerror');
 const Apperror = require('../utils/apperror');
@@ -114,4 +115,48 @@ exports.forgotpassword = asyncHandler(async (req, res, next) => {
     await user.save({ validateBeforeSave: false });
     return next(new Apperror(500, 'there was an error sending the email. try again later!'));
   }
+});
+
+// reset password controller ################
+exports.resetpassword = asyncHandler(async (req, res, next) => {
+  // encrypt the token then compare it to the one in the database
+  const hashedtoken = crypto.createHash('sha256').update(req.params.token).digest('hex');
+  const user = await users.findOne({ passwordResetToken: hashedtoken });
+  // if the user is not found return error
+  if (!user) {
+    return next(new Apperror(400, 'invalid token'));
+  }
+  // check if the token has expired
+  if (user.passwordResetExpires < Date.now()) {
+    return next(new Apperror(400, 'token has expired'));
+  }
+  // update changedPasswordAt property for the user
+  user.password = req.password;
+  user.passwordConfirm = req.passwordConfirm;
+  user.passwordResetToken = undefined;
+  user.passwordResetExpires = undefined;
+  const token = tokengenerataion(user._id);
+  res.status(200).json({
+    status: 'success',
+    token,
+  });
+});
+
+exports.updatepassword = asyncHandler(async (req, res, next) => {
+  // 1) get user from the collection
+  const user = await users.findById(req.user.id).select('+password');
+  // 2) check if posted current password is correct
+  if (!(await user.correctPassword(req.body.currentpassword, user.password))) {
+    return next(new Apperror(401, 'your current password is wrong'));
+  }
+  // 3) if so update the password
+  user.password = req.body.newpassword;
+  user.passwordConfirm = req.body.passwordConfirm;
+  await user.save();
+  // 4) log the user in send JWT
+  const token = tokengenerataion(user._id);
+  res.status(200).json({
+    status: 'success',
+    token,
+  });
 });
