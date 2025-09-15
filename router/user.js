@@ -9,6 +9,8 @@ router.post('/login', authcontroler.login);
 router.post('/forgotpassword', authcontroler.forgotpassword);
 router.patch('/resetpassword/:token', authcontroler.resetpassword);
 router.patch('/updatepassword', authcontroler.protect, authcontroler.updatepassword);
+router.patch('/updateme', authcontroler.protect, controler.updateMe);
+router.delete('/deleteme', authcontroler.protect, controler.deleteMe);
 
 router.param('id', controler.checkid);
 router.route('/').get(controler.getalluser);

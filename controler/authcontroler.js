@@ -11,13 +11,22 @@ const tokengenerataion = (id) => {
     expiresIn: process.env.JWT_EXPIRES_IN,
   });
 };
+
+//send response with token
+const sendtoken = (user, statuscode, res) => {
+  const token = tokengenerataion(user._id);
+  res.status(statuscode).json({
+    status: 'success',
+    token,
+    data: {
+      user,
+    },
+  });
+};
 // signup controller
 exports.signup = asyncHandler(async (req, res, next) => {
   const newUser = await users.create(req.body);
-  res.status(201).json({
-    status: 'success',
-    data: newUser,
-  });
+  sendtoken(newUser, 201, res);
 });
 
 // login controller
@@ -31,13 +40,8 @@ exports.login = asyncHandler(async (req, res, next) => {
   if (!user || !user.correctPassword(password, user.password)) {
     return next(new Apperror(401, 'incorrect email or password'));
   }
-
-  // genrate the token
-  const token = tokengenerataion(user._id);
-  res.status(200).json({
-    status: 'success',
-    token,
-  });
+  // 3) if everything is ok send the token to the client
+  sendtoken(user, 200, res);
 });
 
 // protect middleware  verify that the user is logged in
@@ -135,13 +139,10 @@ exports.resetpassword = asyncHandler(async (req, res, next) => {
   user.passwordConfirm = req.passwordConfirm;
   user.passwordResetToken = undefined;
   user.passwordResetExpires = undefined;
-  const token = tokengenerataion(user._id);
-  res.status(200).json({
-    status: 'success',
-    token,
-  });
+  sendtoken(user, 200, res);
 });
 
+// updatepassword
 exports.updatepassword = asyncHandler(async (req, res, next) => {
   // 1) get user from the collection
   const user = await users.findById(req.user.id).select('+password');
@@ -154,9 +155,5 @@ exports.updatepassword = asyncHandler(async (req, res, next) => {
   user.passwordConfirm = req.body.passwordConfirm;
   await user.save();
   // 4) log the user in send JWT
-  const token = tokengenerataion(user._id);
-  res.status(200).json({
-    status: 'success',
-    token,
-  });
+  sendtoken(user, 200, res);
 });

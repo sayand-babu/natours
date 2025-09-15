@@ -49,6 +49,11 @@ const userSchema = new mongoose.Schema({
   passwordChangedAt: Date,
   passwordResetToken: String,
   passwordResetExpires: Date,
+  active: {
+    type: Boolean,
+    default: true,
+    select: false, // do not return active field in any output
+  },
 });
 
 // pre save middleware to hash the password before saving it to the database only work when we save and create a new user
@@ -72,6 +77,11 @@ userSchema.pre('save', function (next) {
   next();
 });
 
+userSchema.pre(/^find/, function (next) {
+  // this points to the current query
+  this.find({ active: { $ne: false } }); // only find documents where active is not false
+  next();
+});
 // instance method to check if the password is correct
 userSchema.methods.correctPassword = async function (candidatePassword, userPassword) {
   return await bcrypt.compare(candidatePassword, userPassword);
